@@ -25,8 +25,12 @@ module PrivatePub
 
     # Publish the given data to a specific channel. This ends up sending
     # a Net::HTTP POST request to the Faye server.
-    def publish_to(channel, data)
-      publish_message(message(channel, data))
+    def publish_to(channel, data, via_faye_client = false)
+      if via_faye_client
+        faye_client.publish(channel, message_for_faye_client(channel, data))
+      else
+        publish_message(message(channel, data))
+      end
     end
 
     # Sends the given message hash to the Faye server using Net::HTTP.
@@ -72,6 +76,23 @@ module PrivatePub
       options = {:mount => "/faye", :timeout => 45, :extensions => [FayeExtension.new]}.merge(options)
       Faye::RackAdapter.new(options)
     end
+
+    private
+      def faye_client
+        raise Error, "No server specified, ensure `config/private_pub.yml` was loaded properly." unless config[:server]
+        @faye_client ||= ::Faye::Client.new(config[:server])
+      end
+
+      # Returns a message hash for sending to Faye
+      def message_for_faye_client(channel, data)
+        message = { channel: channel, ext: { private_pub_token: config[:secret_token] } }
+        if data.kind_of? String
+          message[:eval] = data
+        else
+          message[:data] = data
+        end
+        message
+      end
   end
 
   reset_config

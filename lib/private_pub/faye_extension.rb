@@ -29,10 +29,14 @@ module PrivatePub
     def authenticate_publish(message)
       if PrivatePub.config[:secret_token].nil?
         raise Error, "No secret_token config set, ensure private_pub.yml is loaded properly."
-      elsif message["ext"]["private_pub_token"] != PrivatePub.config[:secret_token]
-        message["error"] = "Incorrect token."
+      elsif message["ext"]
+        if message["ext"]["private_pub_token"] != PrivatePub.config[:secret_token]
+          message["error"] = "Incorrect token."
+        else
+          message["ext"]["private_pub_token"] = nil
+        end
       else
-        message["ext"]["private_pub_token"] = nil
+        authenticate_publish(message["data"])
       end
     end
   end
